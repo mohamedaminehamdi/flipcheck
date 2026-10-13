@@ -1,0 +1,22 @@
+# FlipCheck on Render: the web app and the API in one service.
+services:
+  - type: web
+    name: flipcheck
+    runtime: python
+    plan: standard            # 2 GB RAM: PyTorch (CPU) + TabPFN v2
+    buildCommand: pip install uv && uv sync --frozen --no-dev
+    startCommand: uv run --no-sync uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.12"
+      - key: TRUST_PROXY       # Render appends the real client IP to X-Forwarded-For
+        value: "1"
+      - key: SERPAPI_KEY
+        sync: false
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: LLM_API_KEY
+        sync: false

@@ -23,13 +23,26 @@ from . import comps, identify, listing, price  # noqa: E402  (after load_dotenv:
 app = FastAPI(title="FlipCheck")
 MAX_BYTES = 12 * 1024 * 1024
 LIMIT, WINDOW = int(os.getenv("RATE_LIMIT", "30")), 600  # requests per IP per 10 minutes
+TRUST_PROXY = os.getenv("TRUST_PROXY") == "1"  # set on Render, which appends the real client IP to X-Forwarded-For
+Image.MAX_IMAGE_PIXELS = 40_000_000  # refuse decompression bombs early
 _hits = defaultdict(deque)
+
+
+def client_ip(request: Request):
+    # Only the LAST X-Forwarded-For entry is written by our proxy; earlier ones are whatever the client sent.
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if TRUST_PROXY and forwarded:
+        return forwarded.split(",")[-1].strip()
+    return request.client.host if request.client else "?"
 
 
 def rate_limit(request: Request):
     """Every check spends model and market-data quota, so one visitor can't loop the API."""
-    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "?")).split(",")[0].strip()
-    now, hits = time.time(), _hits[ip]
+    now = time.time()
+    if len(_hits) > 10_000:  # forget visitors whose window has passed, so the table can't grow without bound
+        for ip in [ip for ip, h in _hits.items() if not h or now - h[-1] > WINDOW]:
+            del _hits[ip]
+    hits = _hits[client_ip(request)]
     while hits and now - hits[0] > WINDOW:
         hits.popleft()
     if len(hits) >= LIMIT:
@@ -41,7 +54,7 @@ DOMAINS = {"ebay.com", "ebay.co.uk", "ebay.de", "ebay.fr", "ebay.it", "ebay.es",
 
 
 async def photo_bytes(photo):
-    raw = await photo.read()
+    raw = await photo.read(MAX_BYTES + 1)  # never hold more than the limit in memory
     if len(raw) > MAX_BYTES:
         raise HTTPException(413, "Photo is larger than 12 MB.")
     try:  # phone photos can be huge and rotated: upright, at most 1280 px, JPEG

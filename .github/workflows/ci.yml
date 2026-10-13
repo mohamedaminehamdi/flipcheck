@@ -1,0 +1,13 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run pytest -q -m "not slow"   # offline: parsing, cleaning, pricing fallbacks, API guards
+      - run: uv run pytest -q -m slow         # real TabPFN v2 on a synthetic market
