@@ -77,8 +77,8 @@ async function run(file, cached) {
       renderPrice(p);
       return p;
     };
-    const pricing = await priceFor(item.search_query);
     $('search').addEventListener('submit', (ev) => { ev.preventDefault(); priceFor($('query').value).catch(showError('price-card')); });
+    const pricing = await priceFor(item.search_query).catch((err) => { showError('price-card')(err); return {}; });
 
     $('listing-card').innerHTML = loading('Writing your listing…');
     let listing = cached?.listing;
@@ -86,11 +86,11 @@ async function run(file, cached) {
       const f = form();
       f.append('item', JSON.stringify(item));
       f.append('pricing', JSON.stringify(pricing));
-      listing = await api('/api/listing', f);
+      listing = await api('/api/listing', f).catch((err) => { showError('listing-card')(err); return null; });
     }
-    renderListing(listing);
+    if (listing) renderListing(listing);
   } catch (err) {
-    showError('item-card')(err);
+    showError('item-card')(err);  // only identification failures land here
   }
 }
 

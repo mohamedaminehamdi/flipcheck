@@ -61,3 +61,24 @@ def test_tabpfn_prices_are_ordered_and_follow_condition():
     assert new["quick"] <= new["fair"] <= new["patient"]
     assert new["fair"] > used["fair"]  # condition must matter
     assert 150 < new["fair"] < 250 and 80 < used["fair"] < 160
+
+
+def test_market_errors_never_leak_the_api_key(monkeypatch, tmp_path):
+    secret = "sk_test_do_not_leak"
+    monkeypatch.setenv("SERPAPI_KEY", secret)
+    monkeypatch.setattr(comps, "CACHE", tmp_path)
+
+    def boom(*args, **kwargs):
+        raise comps.requests.ConnectionError(f"failed: https://serpapi.com/search.json?api_key={secret}")
+
+    monkeypatch.setattr(comps.requests, "get", boom)
+    with pytest.raises(comps.MarketUnavailable) as err:
+        comps.search("canon ae-1")
+    assert secret not in str(err.value) and err.value.__cause__ is None
+
+
+def test_missing_key_is_a_clear_error(monkeypatch, tmp_path):
+    monkeypatch.delenv("SERPAPI_KEY", raising=False)
+    monkeypatch.setattr(comps, "CACHE", tmp_path)
+    with pytest.raises(comps.MarketUnavailable, match="isn't configured"):
+        comps.search("canon ae-1")

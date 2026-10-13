@@ -21,6 +21,10 @@ CONDITION_SCORE = {  # coarse condition scale shared by listings and the user's 
     "for parts": 0, "for parts or not working": 0, "parts only": 0,
 }
 WORDS = re.compile(r"[a-z0-9]+")
+
+
+class MarketUnavailable(RuntimeError):
+    """Live listings couldn't be fetched. The message is safe to show users (no URLs, no keys)."""
 LOT = re.compile(r"\b(lot|bundle|set of|x\d|\d+x|pairs)\b", re.I)
 
 
@@ -91,10 +95,16 @@ def search(query, ebay_domain="ebay.com", per_page=200):
     path = CACHE / f"{key}.json"
     if path.exists() and time.time() - path.stat().st_mtime < 3600:
         return json.loads(path.read_text())
-    r = requests.get("https://serpapi.com/search.json", timeout=60, params={
-        "engine": "ebay", "_nkw": query, "ebay_domain": ebay_domain, "_ipg": per_page,
-        "api_key": os.environ["SERPAPI_KEY"]})
-    r.raise_for_status()
+    key = os.getenv("SERPAPI_KEY")
+    if not key:
+        raise MarketUnavailable("Live market data isn't configured on this server.")
+    try:
+        r = requests.get("https://serpapi.com/search.json", timeout=60, params={
+            "engine": "ebay", "_nkw": query, "ebay_domain": ebay_domain, "_ipg": per_page, "api_key": key})
+    except requests.RequestException:
+        raise MarketUnavailable("Couldn't reach the market data service.") from None  # never surface the URL: it holds the key
+    if not r.ok:
+        raise MarketUnavailable(f"Market data service returned {r.status_code}.")
     results = r.json().get("organic_results", [])
     path.write_text(json.dumps(results))
     return results
