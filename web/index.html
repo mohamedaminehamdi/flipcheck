@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Snap a thrift find. Get a fair resale price from live eBay listings and a ready-to-paste listing. Open-source AI.">
+<meta name="theme-color" content="#121212">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>FlipCheck: what's it worth?</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #121212; --card: #1c1c1c; --card-2: #262626; --line: rgba(255,255,255,.08); --text: #f5f5f4; --muted: #a8a29e;
+    --tag: #ffd23f; --tag-ink: #1a1400; --good: #4ade80; --low: #fb923c;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; min-height: 100svh; background: var(--bg); color: var(--text); font: 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+  button, input { font: inherit; }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--tag); outline-offset: 3px; border-radius: 10px; }
+  [hidden] { display: none !important; }
+  main { max-width: 560px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 110px); }
+  .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: -.02em; font-size: 18px; }
+  .brand img { width: 30px; height: 30px; }
+  .pill { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
+
+  /* home */
+  #home { min-height: calc(100svh - 120px); display: flex; flex-direction: column; justify-content: center; text-align: center; }
+  h1 { font-size: clamp(40px, 12vw, 58px); line-height: .98; letter-spacing: -.045em; margin: 0 0 12px; font-weight: 850; }
+  h1 em { font-style: normal; color: var(--tag); }
+  .lede { color: var(--muted); margin: 0 auto 30px; max-width: 22em; font-size: 17px; }
+  .shutter { display: grid; place-items: center; width: 96px; height: 96px; margin: 0 auto; border-radius: 50%; background: var(--tag);
+    color: var(--tag-ink); cursor: pointer; box-shadow: 0 0 0 8px rgba(255,210,63,.14), 0 18px 40px -12px rgba(255,210,63,.55); transition: transform .12s; }
+  .shutter:active { transform: scale(.94); }
+  .shutter svg { width: 38px; height: 38px; }
+  .hint { margin: 14px 0 34px; font-size: 13px; color: var(--muted); }
+  .try { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .examples { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .examples button { padding: 0; border: 0; background: var(--card); border-radius: 16px; overflow: hidden; color: var(--muted); font-size: 12px; cursor: pointer; }
+  .examples img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #fff; }
+  .examples span { display: block; padding: 6px 4px 8px; }
+  input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+  /* result */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 16px; margin-top: 12px; }
+  .item { display: grid; grid-template-columns: 84px 1fr; gap: 14px; align-items: center; }
+  .item img { width: 84px; height: 84px; border-radius: 16px; object-fit: cover; background: #fff; }
+  .item h2 { font-size: 20px; line-height: 1.2; margin: 0 0 4px; letter-spacing: -.02em; }
+  .item .meta { color: var(--muted); font-size: 14px; }
+  .search { display: flex; gap: 8px; margin-top: 12px; }
+  .search input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card-2); color: var(--text); }
+  .search button, .ghost { border: 1px solid var(--line); background: var(--card-2); color: var(--text); border-radius: 12px; padding: 0 14px; font-weight: 650; cursor: pointer; }
+  .label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .fair { font-size: 64px; line-height: 1; font-weight: 850; letter-spacing: -.04em; color: var(--tag); margin: 6px 0 10px; font-variant-numeric: tabular-nums; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .split div { background: var(--card-2); border-radius: 14px; padding: 10px 12px; }
+  .split b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .split small { color: var(--muted); font-size: 12.5px; }
+  .range { position: relative; height: 8px; border-radius: 8px; background: var(--card-2); margin: 18px 0 6px; }
+  .range i { position: absolute; top: 0; bottom: 0; border-radius: 8px; background: rgba(255,210,63,.35); }
+  .range b { position: absolute; top: -5px; width: 4px; height: 18px; border-radius: 2px; background: var(--tag); transform: translateX(-2px); }
+  .ends { display: flex; justify-content: space-between; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .note { color: var(--muted); font-size: 13px; margin: 12px 0 0; }
+  .comps { display: flex; gap: 10px; overflow-x: auto; margin: 12px -16px 0; padding: 0 16px 4px; scroll-snap-type: x mandatory; }
+  .comps a { flex: none; width: 132px; scroll-snap-align: start; text-decoration: none; background: var(--card-2); border-radius: 14px; overflow: hidden; }
+  .comps img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #fff; }
+  .comps span { display: block; padding: 8px; font-size: 12px; color: var(--muted); }
+  .comps b { color: var(--text); font-size: 15px; }
+  .copyrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 14px 0 6px; }
+  .copyrow button { border: 0; background: var(--tag); color: var(--tag-ink); font-weight: 750; border-radius: 10px; padding: 6px 12px; cursor: pointer; }
+  .listing-title { font-weight: 700; font-size: 17px; }
+  .listing-desc { white-space: pre-wrap; color: #d6d3d1; font-size: 15px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td { padding: 6px 0; border-top: 1px solid var(--line); } td:first-child { color: var(--muted); width: 40%; }
+  .loading { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+  .loading::before { content: ""; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--tag); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error { color: var(--low); }
+  .bar { position: fixed; inset: auto 0 0; display: flex; justify-content: center; padding: 12px 16px calc(env(safe-area-inset-bottom) + 12px);
+    background: linear-gradient(transparent, var(--bg) 35%); }
+  .bar label { display: flex; align-items: center; gap: 8px; justify-content: center; width: min(528px, 100%); min-height: 56px; border-radius: 16px;
+    background: var(--tag); color: var(--tag-ink); font-weight: 800; cursor: pointer; }
+  .bar svg { width: 20px; height: 20px; }
+  body.home .bar { display: none; }
+  footer { color: var(--muted); font-size: 12.5px; text-align: center; margin-top: 26px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body class="home">
+<main>
+  <header class="top">
+    <div class="brand"><img src="icon.svg" alt="" width="30" height="30">FlipCheck</div>
+    <span class="pill">Live eBay prices · open AI</span>
+  </header>
+
+  <section id="home">
+    <h1>What's it <em>worth?</em></h1>
+    <p class="lede">Snap a thrift find. Get a fair price from live eBay listings and a listing ready to paste.</p>
+    <label class="shutter" for="camera" aria-label="Take or choose a photo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="4"/></svg>
+    </label>
+    <p class="hint">Takes about 15 seconds</p>
+    <div class="try">Or try one</div>
+    <div class="examples">
+      <button type="button" data-example="sneaker"><img src="examples/sneaker.jpg" alt=""><span>Sneakers</span></button>
+      <button type="button" data-example="camera"><img src="examples/camera.jpg" alt=""><span>Film camera</span></button>
+      <button type="button" data-example="gameboy"><img src="examples/gameboy.jpg" alt=""><span>Game Boy</span></button>
+      <button type="button" data-example="bag"><img src="examples/bag.jpg" alt=""><span>Handbag</span></button>
+    </div>
+  </section>
+
+  <section id="result" hidden aria-live="polite">
+    <div class="card" id="item-card"></div>
+    <div class="card" id="price-card"></div>
+    <div class="card" id="listing-card"></div>
+  </section>
+
+  <footer>
+    Prices are live eBay <b>asking</b> prices, priced for your item by TabPFN. Item recognition and listings by Gemma 4.
+    · <a href="https://github.com/mohamedaminehamdi/flipcheck">source code</a>
+  </footer>
+</main>
+<input id="camera" type="file" accept="image/*" capture="environment">
+<nav class="bar"><label for="camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="4"/></svg>Check another find</label></nav>
+<script type="module" src="app.js"></script>
+</body>
+</html>
